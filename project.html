@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AdaptLearn - Adaptive Learning Platform</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .progress-bar {
+            transition: width 0.5s ease-in-out;
+        }
+        .quiz-option {
+            transition: all 0.2s ease;
+        }
+        .quiz-option:hover {
+            background-color: #f3f4f6;
+        }
+        .quiz-option.selected {
+            background-color: #dbeafe;
+            border-color: #3b82f6;
+        }
+        .quiz-option.correct {
+            background-color: #dcfce7;
+            border-color: #16a34a;
+        }
+        .quiz-option.incorrect {
+            background-color: #fee2e2;
+            border-color: #dc2626;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Sample data
+        const sampleUsers = [
+            { id: 1, email: 'student@demo.com', password: 'demo123', name: 'Eereti.Revathi', role: 'student' },
+            { id: 2, email: 'teacher@demo.com', password: 'demo123', name: ' pooja', role: 'teacher' }
+        ];
+
+        const sampleCourses = [
+            {
+                id: 1,
+                title: 'JavaScript Fundamentals',
+                description: 'Learn the basics of JavaScript programming',
+                difficulty: 'Beginner',
+                progress: 65,
+                totalLessons: 12,
+                completedLessons: 8,
+                category: 'Programming',
+                estimatedTime: '4 weeks',
+                rating: 4.8
+            },
+            {
+                id: 2,
+                title: 'React Development',
+                description: 'Build modern web applications with React',
+                difficulty: 'Intermediate',
+                progress: 30,
+                totalLessons: 15,
+                completedLessons: 4,
+                category: 'Web Development',
+                estimatedTime: '6 weeks',
+                rating: 4.9
+            },
+            {
+                id: 3,
+                title: 'Data Structures & Algorithms',
+                description: 'Master computer science fundamentals',
+                difficulty: 'Advanced',
+                progress: 0,
+                totalLessons: 20,
+                completedLessons: 0,
+                category: 'Computer Science',
+                estimatedTime: '8 weeks',
+                rating: 4.7
+            },
+            {
+                id: 4,
+                title: 'Python for Data Science',
+                description: 'Analyze data and build ML models with Python',
+                difficulty: 'Intermediate',
+                progress: 45,
+                totalLessons: 18,
+                completedLessons: 8,
+                category: 'Data Science',
+                estimatedTime: '7 weeks',
+                rating: 4.6
+            }
+        ];
+
+        const sampleQuizzes = [
+            {
+                id: 1,
+                courseId: 1,
+                title: 'JavaScript Variables & Functions',
+                questions: [
+                    {
+                        id: 1,
+                        question: 'Which keyword is used to declare a variable in JavaScript?',
+                        options: ['var', 'variable', 'declare', 'let'],
+                        correct: 0,
+                        explanation: 'Both "var" and "let" can be used, but "var" is the traditional way.'
+                    },
+                    {
+                        id: 2,
+                        question: 'What does the "return" statement do in a function?',
+                        options: ['Ends the function', 'Returns a value', 'Both A and B', 'None of the above'],
+                        correct: 2,
+                        explanation: 'The return statement both ends function execution and returns a value.'
+                    },
+                    {
+                        id: 3,
+                        question: 'Which of these is NOT a JavaScript data type?',
+                        options: ['String', 'Boolean', 'Integer', 'Number'],
+                        correct: 2,
+                        explanation: 'JavaScript uses "Number" for all numeric values, not separate Integer type.'
+                    }
+                ]
+            },
+            {
+                id: 2,
+                courseId: 2,
+                title: 'React Components & Props',
+                questions: [
+                    {
+                        id: 1,
+                        question: 'What is a React component?',
+                        options: ['A JavaScript function', 'A reusable piece of UI', 'Both A and B', 'A CSS class'],
+                        correct: 2,
+                        explanation: 'React components are JavaScript functions that return reusable UI elements.'
+                    },
+                    {
+                        id: 2,
+                        question: 'How do you pass data to a React component?',
+                        options: ['Through props', 'Through state', 'Through context', 'All of the above'],
+                        correct: 0,
+                        explanation: 'Props are the primary way to pass data from parent to child components.'
+                    }
+                ]
+            }
+        ];
+
+        // AI Recommendation System (simulated)
+        const generateRecommendations = (user, courses, completedQuizzes) => {
+            const userProgress = courses.map(course => ({
+                courseId: course.id,
+                progress: course.progress,
+                difficulty: course.difficulty,
+                category: course.category
+            }));
+
+            // Simple AI logic based on progress and performance
+            const recommendations = [];
+            
+            // Recommend next steps in current courses
+            const inProgressCourses = courses.filter(c => c.progress > 0 && c.progress < 100);
+            if (inProgressCourses.length > 0) {
+                recommendations.push({
+                    type: 'continue',
+                    course: inProgressCourses[0],
+                    reason: 'Continue your learning momentum',
+                    priority: 'high'
+                });
+            }
+
+            // Recommend new courses based on completed ones
+            const completedCourses = courses.filter(c => c.progress === 100);
+            if (completedCourses.some(c => c.category === 'Programming')) {
+                const nextCourse = courses.find(c => c.category === 'Web Development' && c.progress === 0);
+                if (nextCourse) {
+                    recommendations.push({
+                        type: 'next',
+                        course: nextCourse,
+                        reason: 'Perfect next step after JavaScript',
+                        priority: 'medium'
+                    });
+                }
+            }
+
+            // Recommend based on quiz performance
+            const avgQuizScore = completedQuizzes.length > 0 
+                ? completedQuizzes.reduce((sum, quiz) => sum + quiz.score, 0) / completedQuizzes.length 
+                : 0;
+            
+            if (avgQuizScore > 80) {
+                const advancedCourse = courses.find(c => c.difficulty === 'Advanced' && c.progress === 0);
+                if (advancedCourse) {
+                    recommendations.push({
+                        type: 'challenge',
+                        course: advancedCourse,
+                        reason: 'You\'re ready for advanced topics!',
+                        priority: 'medium'
+                    });
+                }
+            }
+
+            return recommendations.slice(0, 3); // Return top 3 recommendations
+        };
+
+        // Login Component
+        const LoginForm = ({ onLogin }) => {
+            const [email, setEmail] = useState('');
+            const [password, setPassword] = useState('');
+            const [error, setError] = useState('');
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                const user = sampleUsers.find(u => u.email === email && u.password === password);
+                if (user) {
+                    onLogin(user);
+                } else {
+                    setError('Invalid credentials. Try: student@demo.com / demo123');
+                }
+            };
+
+            const handleDemoLogin = () => {
+                setEmail('student@demo.com');
+                setPassword('demo123');
+                onLogin(sampleUsers[0]);
+            };
+
+            return (
+                <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+                        <div className="text-center mb-8">
+                            <h1 className="text-3xl font-bold text-gray-800 mb-2">AdaptLearn</h1>
+                            <p className="text-gray-600">Personalized Learning Platform</p>
+                        </div>
+                        
+                        <form onSubmit={handleSubmit} className="space-y-6">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                                <input
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="Enter your email"
+                                    required
+                                />
+                            </div>
+                            
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="Enter your password"
+                                    required
+                                />
+                            </div>
+                            
+                            {error && (
+                                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                                    {error}
+                                </div>
+                            )}
+                            
+                            <button
+                                type="submit"
+                                className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition duration-200 font-medium"
+                            >
+                                Sign In
+                            </button>
+                        </form>
+                        
+                        <div className="mt-6 pt-6 border-t border-gray-200">
+                            <button
+                                onClick={handleDemoLogin}
+                                className="w-full bg-gray-100 text-gray-700 py-3 rounded-lg hover:bg-gray-200 transition duration-200 font-medium"
+                            >
+                                Try Demo Account
+                            </button>
+                            <p className="text-xs text-gray-500 mt-2 text-center">
+                                Demo: student@demo.com / demo123
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Dashboard Component
+        const Dashboard = ({ user, courses, onStartQuiz, onLogout }) => {
+            const [completedQuizzes] = useState([
+                { courseId: 1, score: 85, date: '2024-01-15' },
+                { courseId: 2, score: 92, date: '2024-01-10' }
+            ]);
+
+            const recommendations = generateRecommendations(user, courses, completedQuizzes);
+            const totalProgress = Math.round(courses.reduce((sum, course) => sum + course.progress, 0) / courses.length);
+
+            return (
+                <div className="min-h-screen bg-gray-50">
+                    {/* Header */}
+                    <header className="bg-white shadow-sm border-b">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="flex justify-between items-center h-16">
+                                <div className="flex items-center">
+                                    <h1 className="text-2xl font-bold text-gray-900">AdaptLearn</h1>
+                                </div>
+                                <div className="flex items-center space-x-4">
+                                    <span className="text-gray-700">Welcome, {user.name}</span>
+                                    <button
+                                        onClick={onLogout}
+                                        className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition duration-200"
+                                    >
+                                        Logout
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </header>
+
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                        {/* Stats Overview */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                            <div className="bg-white rounded-xl p-6 shadow-sm">
+                                <div className="flex items-center">
+                                    <div className="p-2 bg-blue-100 rounded-lg">
+                                        <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                                        </svg>
+                                    </div>
+                                    <div className="ml-4">
+                                        <p className="text-sm font-medium text-gray-600">Enrolled Courses</p>
+                                        <p className="text-2xl font-bold text-gray-900">{courses.length}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-xl p-6 shadow-sm">
+                                <div className="flex items-center">
+                                    <div className="p-2 bg-green-100 rounded-lg">
+                                        <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                    </div>
+                                    <div className="ml-4">
+                                        <p className="text-sm font-medium text-gray-600">Overall Progress</p>
+                                        <p className="text-2xl font-bold text-gray-900">{totalProgress}%</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-xl p-6 shadow-sm">
+                                <div className="flex items-center">
+                                    <div className="p-2 bg-purple-100 rounded-lg">
+                                        <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                        </svg>
+                                    </div>
+                                    <div className="ml-4">
+                                        <p className="text-sm font-medium text-gray-600">Quizzes Completed</p>
+                                        <p className="text-2xl font-bold text-gray-900">{completedQuizzes.length}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-xl p-6 shadow-sm">
+                                <div className="flex items-center">
+                                    <div className="p-2 bg-yellow-100 rounded-lg">
+                                        <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
+                                        </svg>
+                                    </div>
+                                    <div className="ml-4">
+                                        <p className="text-sm font-medium text-gray-600">Avg Quiz Score</p>
+                                        <p className="text-2xl font-bold text-gray-900">
+                                            {completedQuizzes.length > 0 
+                                                ? Math.round(completedQuizzes.reduce((sum, quiz) => sum + quiz.score, 0) / completedQuizzes.length)
+                                                : 0}%
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* AI Recommendations */}
+                        {recommendations.length > 0 && (
+                            <div className="mb-8">
+                                <h2 className="text-xl font-bold text-gray-900 mb-4">🤖 AI Recommendations</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    {recommendations.map((rec, index) => (
+                                        <div key={index} className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 border border-blue-200">
+                                            <div className="flex items-center mb-3">
+                                                <span className="text-2xl mr-2">
+                                                    {rec.type === 'continue' ? '⚡' : rec.type === 'next' ? '🎯' : '🚀'}
+                                                </span>
+                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                                    rec.priority === 'high' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
+                                                }`}>
+                                                    {rec.priority} priority
+                                                </span>
+                                            </div>
+                                            <h3 className="font-semibold text-gray-900 mb-2">{rec.course.title}</h3>
+                                            <p className="text-sm text-gray-600 mb-3">{rec.reason}</p>
+                                            <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                                                Start Learning →
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Courses Grid */}
+                        <div className="mb-8">
+                            <h2 className="text-xl font-bold text-gray-900 mb-6">Your Courses</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {courses.map(course => (
+                                    <div key={course.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden card-hover">
+                                        <div className="p-6">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                                    course.difficulty === 'Beginner' ? 'bg-green-100 text-green-800' :
+                                                    course.difficulty === 'Intermediate' ? 'bg-yellow-100 text-yellow-800' :
+                                                    'bg-red-100 text-red-800'
+                                                }`}>
+                                                    {course.difficulty}
+                                                </span>
+                                                <div className="flex items-center">
+                                                    <svg className="w-4 h-4 text-yellow-400 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
+                                                    </svg>
+                                                    <span className="text-sm text-gray-600">{course.rating}</span>
+                                                </div>
+                                            </div>
+                                            
+                                            <h3 className="text-lg font-semibold text-gray-900 mb-2">{course.title}</h3>
+                                            <p className="text-gray-600 text-sm mb-4">{course.description}</p>
+                                            
+                                            <div className="mb-4">
+                                                <div className="flex justify-between text-sm text-gray-600 mb-2">
+                                                    <span>Progress</span>
+                                                    <span>{course.progress}%</span>
+                                                </div>
+                                                <div className="w-full bg-gray-200 rounded-full h-2">
+                                                    <div 
+                                                        className="bg-blue-600 h-2 rounded-full progress-bar" 
+                                                        style={{width: `${course.progress}%`}}
+                                                    ></div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="flex justify-between items-center text-sm text-gray-600 mb-4">
+                                                <span>{course.completedLessons}/{course.totalLessons} lessons</span>
+                                                <span>{course.estimatedTime}</span>
+                                            </div>
+                                            
+                                            <div className="flex space-x-2">
+                                                <button className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-200 text-sm font-medium">
+                                                    Continue
+                                                </button>
+                                                <button 
+                                                    onClick={() => onStartQuiz(course.id)}
+                                                    className="flex-1 bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition duration-200 text-sm font-medium"
+                                                >
+                                                    Take Quiz
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Quiz Component
+        const Quiz = ({ courseId, onComplete, onBack }) => {
+            const quiz = sampleQuizzes.find(q => q.courseId === courseId);
+            const [currentQuestion, setCurrentQuestion] = useState(0);
+            const [selectedAnswers, setSelectedAnswers] = useState({});
+            const [showResults, setShowResults] = useState(false);
+            const [score, setScore] = useState(0);
+
+            if (!quiz) {
+                return (
+                    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                        <div className="text-center">
+                            <h2 className="text-2xl font-bold text-gray-900 mb-4">Quiz Not Available</h2>
+                            <button 
+                                onClick={onBack}
+                                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition duration-200"
+                            >
+                                Back to Dashboard
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            const handleAnswerSelect = (questionId, answerIndex) => {
+                setSelectedAnswers({
+                    ...selectedAnswers,
+                    [questionId]: answerIndex
+                });
+            };
+
+            const handleNext = () => {
+                if (currentQuestion < quiz.questions.length - 1) {
+                    setCurrentQuestion(currentQuestion + 1);
+                } else {
+                    // Calculate score
+                    let correctAnswers = 0;
+                    quiz.questions.forEach(question => {
+                        if (selectedAnswers[question.id] === question.correct) {
+                            correctAnswers++;
+                        }
+                    });
+                    const finalScore = Math.round((correctAnswers / quiz.questions.length) * 100);
+                    setScore(finalScore);
+                    setShowResults(true);
+                }
+            };
+
+            const handlePrevious = () => {
+                if (currentQuestion > 0) {
+                    setCurrentQuestion(currentQuestion - 1);
+                }
+            };
+
+            const handleComplete = () => {
+                onComplete(score);
+            };
+
+            if (showResults) {
+                return (
+                    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+                        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-2xl w-full">
+                            <div className="text-center mb-8">
+                                <div className={`w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-4 ${
+                                    score >= 80 ? 'bg-green-100' : score >= 60 ? 'bg-yellow-100' : 'bg-red-100'
+                                }`}>
+                                    <span className="text-3xl">
+                                        {score >= 80 ? '🎉' : score >= 60 ? '👍' : '📚'}
+                                    </span>
+                                </div>
+                                <h2 className="text-3xl font-bold text-gray-900 mb-2">Quiz Complete!</h2>
+                                <p className="text-xl text-gray-600">Your Score: {score}%</p>
+                            </div>
+
+                            <div className="space-y-6 mb-8">
+                                {quiz.questions.map((question, index) => {
+                                    const userAnswer = selectedAnswers[question.id];
+                                    const isCorrect = userAnswer === question.correct;
+                                    
+                                    return (
+                                        <div key={question.id} className="border rounded-lg p-4">
+                                            <h3 className="font-semibold text-gray-900 mb-3">
+                                                {index + 1}. {question.question}
+                                            </h3>
+                                            <div className="space-y-2 mb-3">
+                                                {question.options.map((option, optionIndex) => (
+                                                    <div 
+                                                        key={optionIndex}
+                                                        className={`p-3 rounded-lg border ${
+                                                            optionIndex === question.correct ? 'bg-green-50 border-green-200' :
+                                                            optionIndex === userAnswer && !isCorrect ? 'bg-red-50 border-red-200' :
+                                                            'bg-gray-50 border-gray-200'
+                                                        }`}
+                                                    >
+                                                        <div className="flex items-center">
+                                                            <span className="mr-2">
+                                                                {optionIndex === question.correct ? '✅' :
+                                                                 optionIndex === userAnswer && !isCorrect ? '❌' : '⚪'}
+                                                            </span>
+                                                            {option}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                                <p className="text-sm text-blue-800">
+                                                    <strong>Explanation:</strong> {question.explanation}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="flex space-x-4">
+                                <button 
+                                    onClick={handleComplete}
+                                    className="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition duration-200 font-medium"
+                                >
+                                    Continue Learning
+                                </button>
+                                <button 
+                                    onClick={onBack}
+                                    className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-lg hover:bg-gray-200 transition duration-200 font-medium"
+                                >
+                                    Back to Dashboard
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            const question = quiz.questions[currentQuestion];
+            const progress = ((currentQuestion + 1) / quiz.questions.length) * 100;
+
+            return (
+                <div className="min-h-screen bg-gray-50">
+                    <div className="max-w-4xl mx-auto px-4 py-8">
+                        {/* Header */}
+                        <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h1 className="text-2xl font-bold text-gray-900">{quiz.title}</h1>
+                                <button 
+                                    onClick={onBack}
+                                    className="text-gray-600 hover:text-gray-800 transition duration-200"
+                                >
+                                    ✕ Close
+                                </button>
+                            </div>
+                            
+                            <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
+                                <span>Question {currentQuestion + 1} of {quiz.questions.length}</span>
+                                <span>{Math.round(progress)}% Complete</span>
+                            </div>
+                            
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div 
+                                    className="bg-blue-600 h-2 rounded-full progress-bar" 
+                                    style={{width: `${progress}%`}}
+                                ></div>
+                            </div>
+                        </div>
+
+                        {/* Question */}
+                        <div className="bg-white rounded-xl shadow-sm p-8">
+                            <h2 className="text-xl font-semibold text-gray-900 mb-6">
+                                {question.question}
+                            </h2>
+                            
+                            <div className="space-y-3 mb-8">
+                                {question.options.map((option, index) => (
+                                    <button
+                                        key={index}
+                                        onClick={() => handleAnswerSelect(question.id, index)}
+                                        className={`w-full text-left p-4 rounded-lg border-2 transition-all duration-200 quiz-option ${
+                                            selectedAnswers[question.id] === index 
+                                                ? 'selected border-blue-500 bg-blue-50' 
+                                                : 'border-gray-200 hover:border-gray-300'
+                                        }`}
+                                    >
+                                        <div className="flex items-center">
+                                            <div className={`w-6 h-6 rounded-full border-2 mr-4 flex items-center justify-center ${
+                                                selectedAnswers[question.id] === index 
+                                                    ? 'border-blue-500 bg-blue-500' 
+                                                    : 'border-gray-300'
+                                            }`}>
+                                                {selectedAnswers[question.id] === index && (
+                                                    <div className="w-2 h-2 bg-white rounded-full"></div>
+                                                )}
+                                            </div>
+                                            <span className="text-gray-900">{option}</span>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                            
+                            <div className="flex justify-between">
+                                <button 
+                                    onClick={handlePrevious}
+                                    disabled={currentQuestion === 0}
+                                    className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Previous
+                                </button>
+                                
+                                <button 
+                                    onClick={handleNext}
+                                    disabled={selectedAnswers[question.id] === undefined}
+                                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {currentQuestion === quiz.questions.length - 1 ? 'Finish Quiz' : 'Next'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Main App Component
+        const App = () => {
+            const [user, setUser] = useState(null);
+            const [currentView, setCurrentView] = useState('login');
+            const [currentQuizCourse, setCurrentQuizCourse] = useState(null);
+
+            const handleLogin = (userData) => {
+                setUser(userData);
+                setCurrentView('dashboard');
+            };
+
+            const handleLogout = () => {
+                setUser(null);
+                setCurrentView('login');
+            };
+
+            const handleStartQuiz = (courseId) => {
+                setCurrentQuizCourse(courseId);
+                setCurrentView('quiz');
+            };
+
+            const handleQuizComplete = (score) => {
+                // In a real app, this would save to database
+                console.log('Quiz completed with score:', score);
+                setCurrentView('dashboard');
+                setCurrentQuizCourse(null);
+            };
+
+            const handleBackToDashboard = () => {
+                setCurrentView('dashboard');
+                setCurrentQuizCourse(null);
+            };
+
+            if (currentView === 'login') {
+                return <LoginForm onLogin={handleLogin} />;
+            }
+
+            if (currentView === 'quiz') {
+                return (
+                    <Quiz 
+                        courseId={currentQuizCourse}
+                        onComplete={handleQuizComplete}
+                        onBack={handleBackToDashboard}
+                    />
+                );
+            }
+
+            return (
+                <Dashboard 
+                    user={user}
+                    courses={sampleCourses}
+                    onStartQuiz={handleStartQuiz}
+                    onLogout={handleLogout}
+                />
+            );
+        };
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97e55fbf60f8a7e7',t:'MTc1Nzc0MjY5OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
